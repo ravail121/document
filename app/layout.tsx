@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Header } from "@/components/Header";
+import { LoadingProvider } from "@/components/LoadingProvider";
 import { getCurrentUserId } from "@/lib/session";
 import "./globals.css";
 
@@ -21,8 +22,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="min-h-screen bg-neutral-50 text-neutral-900">
-        <Header currentUserId={currentUserId} />
-        <ErrorBoundary>{children}</ErrorBoundary>
+        <LoadingProvider>
+          <Header currentUserId={currentUserId} />
+          <ErrorBoundary>{children}</ErrorBoundary>
+        </LoadingProvider>
       </body>
     </html>
   );

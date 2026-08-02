@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useLoading } from "@/components/LoadingProvider";
+import { Spinner } from "@/components/Spinner";
 import type { User } from "@/lib/types";
 
 type HeaderProps = {
@@ -11,6 +13,7 @@ type HeaderProps = {
 
 export function Header({ currentUserId }: HeaderProps) {
   const router = useRouter();
+  const { showLoading, hideLoading } = useLoading();
   const [users, setUsers] = useState<User[]>([]);
   const [selectedUserId, setSelectedUserId] = useState(currentUserId);
   const [switching, setSwitching] = useState(false);
@@ -48,6 +51,7 @@ export function Header({ currentUserId }: HeaderProps) {
 
     setSwitching(true);
     setSelectedUserId(userId);
+    showLoading("Switching account…");
 
     try {
       const response = await fetch("/api/session", {
@@ -66,6 +70,7 @@ export function Header({ currentUserId }: HeaderProps) {
       setSelectedUserId(currentUserId);
     } finally {
       setSwitching(false);
+      hideLoading();
     }
   }
 
@@ -75,6 +80,9 @@ export function Header({ currentUserId }: HeaderProps) {
         <Link
           href="/"
           className="text-base font-semibold tracking-tight text-neutral-900"
+          onClick={() => {
+            showLoading("Loading dashboard…");
+          }}
         >
           docs
         </Link>
@@ -82,6 +90,7 @@ export function Header({ currentUserId }: HeaderProps) {
         <div className="flex flex-wrap items-center justify-end gap-2 text-sm">
           <label className="flex items-center gap-2 text-neutral-700">
             <span className="text-neutral-500">Viewing as</span>
+            {switching && <Spinner className="h-3.5 w-3.5" label="Switching" />}
             <select
               value={selectedUserId}
               disabled={switching || users.length === 0}

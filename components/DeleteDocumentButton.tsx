@@ -2,6 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useLoading } from "@/components/LoadingProvider";
+import { Spinner } from "@/components/Spinner";
 
 type DeleteDocumentButtonProps = {
   documentId: string;
@@ -13,6 +15,7 @@ export function DeleteDocumentButton({
   title,
 }: DeleteDocumentButtonProps) {
   const router = useRouter();
+  const { showLoading, hideLoading } = useLoading();
   const [deleting, setDeleting] = useState(false);
 
   async function handleDelete() {
@@ -24,6 +27,7 @@ export function DeleteDocumentButton({
     if (!confirmed) return;
 
     setDeleting(true);
+    showLoading("Deleting document…");
     try {
       const response = await fetch(`/api/documents/${documentId}`, {
         method: "DELETE",
@@ -36,6 +40,7 @@ export function DeleteDocumentButton({
       router.refresh();
     } finally {
       setDeleting(false);
+      hideLoading();
     }
   }
 
@@ -48,8 +53,9 @@ export function DeleteDocumentButton({
         void handleDelete();
       }}
       disabled={deleting}
-      className="text-xs text-neutral-400 hover:text-neutral-700 disabled:opacity-50"
+      className="inline-flex items-center gap-1.5 text-xs text-neutral-400 hover:text-neutral-700 disabled:opacity-50"
     >
+      {deleting && <Spinner className="h-3 w-3" />}
       {deleting ? "Deleting…" : "Delete"}
     </button>
   );

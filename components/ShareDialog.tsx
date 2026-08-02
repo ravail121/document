@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { Spinner } from "@/components/Spinner";
 import type { ShareUser, User } from "@/lib/types";
 
 type ShareDialogProps = {
@@ -138,7 +139,10 @@ export function ShareDialog({ documentId }: ShareDialogProps) {
       <h3 className="mb-3 font-medium text-neutral-900">Share document</h3>
 
       {loading ? (
-        <p className="text-neutral-500">Loading…</p>
+        <div className="flex items-center gap-2 text-neutral-500">
+          <Spinner className="h-4 w-4" />
+          <span>Loading…</span>
+        </div>
       ) : (
         <>
           <div className="mb-4">
@@ -164,8 +168,9 @@ export function ShareDialog({ documentId }: ShareDialogProps) {
                       onClick={() => {
                         void handleRemove(share.id);
                       }}
-                      className="text-xs text-neutral-500 hover:text-neutral-800 disabled:opacity-50"
+                      className="inline-flex items-center gap-1 text-xs text-neutral-500 hover:text-neutral-800 disabled:opacity-50"
                     >
+                      {busy && <Spinner className="h-3 w-3" />}
                       Remove
                     </button>
                   </li>
@@ -202,8 +207,11 @@ export function ShareDialog({ documentId }: ShareDialogProps) {
                   onClick={() => {
                     void handleAdd();
                   }}
-                  className="rounded border border-neutral-800 bg-neutral-900 px-3 py-1 text-white disabled:opacity-50"
+                  className="inline-flex items-center gap-2 rounded border border-neutral-800 bg-neutral-900 px-3 py-1 text-white disabled:opacity-50"
                 >
+                  {busy && (
+                    <Spinner className="h-3.5 w-3.5 border-neutral-500 border-t-white" />
+                  )}
                   Add
                 </button>
               </div>

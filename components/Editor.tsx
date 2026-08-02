@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
+import { useLoading } from "@/components/LoadingProvider";
 import { ShareDialog } from "@/components/ShareDialog";
 import type { DocumentContent } from "@/lib/types";
 
@@ -64,6 +65,7 @@ export function Editor({
   isOwner,
   ownerName,
 }: EditorProps) {
+  const { showLoading } = useLoading();
   const [title, setTitle] = useState(initialTitle);
   const [version, setVersion] = useState(initialVersion);
   const [status, setStatus] = useState<SaveStatus>("saved");
@@ -246,7 +248,13 @@ export function Editor({
   return (
     <div className="mx-auto max-w-[800px]">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-neutral-200 pb-3">
-        <Link href="/" className="text-sm text-neutral-600 underline">
+        <Link
+          href="/"
+          className="text-sm text-neutral-600 underline"
+          onClick={() => {
+            showLoading("Loading dashboard…");
+          }}
+        >
           ← Back to dashboard
         </Link>
         <div className="flex items-center gap-3">

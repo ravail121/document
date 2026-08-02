@@ -2,6 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
+import { useLoading } from "@/components/LoadingProvider";
+import { Spinner } from "@/components/Spinner";
 
 type DocumentResponse = {
   id: string;
@@ -13,6 +15,7 @@ type ErrorBody = {
 
 export function UploadButton() {
   const router = useRouter();
+  const { showLoading, hideLoading } = useLoading();
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -22,6 +25,7 @@ export function UploadButton() {
 
     setUploading(true);
     setError(null);
+    showLoading("Uploading file…");
 
     try {
       const body = new FormData();
@@ -35,12 +39,14 @@ export function UploadButton() {
       const payload = (await response.json()) as DocumentResponse & ErrorBody;
       if (!response.ok) {
         setError(payload.error ?? "Upload failed");
+        hideLoading();
         return;
       }
 
       router.push(`/documents/${payload.id}`);
     } catch {
       setError("Upload failed");
+      hideLoading();
     } finally {
       setUploading(false);
       if (inputRef.current) {
@@ -64,8 +70,9 @@ export function UploadButton() {
         type="button"
         disabled={uploading}
         onClick={() => inputRef.current?.click()}
-        className="rounded border border-neutral-300 bg-white px-3 py-1.5 text-sm text-neutral-800 disabled:opacity-50"
+        className="inline-flex items-center gap-2 rounded border border-neutral-300 bg-white px-3 py-1.5 text-sm text-neutral-800 disabled:opacity-50"
       >
+        {uploading && <Spinner className="h-3.5 w-3.5" />}
         {uploading ? "Uploading…" : "Upload a file"}
       </button>
       <p className="text-xs text-neutral-500">

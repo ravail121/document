@@ -1,5 +1,5 @@
-import Link from "next/link";
 import { DeleteDocumentButton } from "@/components/DeleteDocumentButton";
+import { DocumentLink } from "@/components/DocumentLink";
 import { NewDocumentButton } from "@/components/NewDocumentButton";
 import { UploadButton } from "@/components/UploadButton";
 import { listOwnedDocuments, listSharedDocuments } from "@/lib/queries";
@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 function OwnedRow({ doc }: { doc: Document }) {
   return (
     <li className="flex items-center gap-3 border-b border-neutral-200 py-3 last:border-b-0">
-      <Link
+      <DocumentLink
         href={`/documents/${doc.id}`}
         className="min-w-0 flex-1 hover:bg-neutral-100/80"
       >
@@ -25,7 +25,7 @@ function OwnedRow({ doc }: { doc: Document }) {
         <p className="mt-0.5 text-sm text-neutral-500">
           Updated {formatRelativeTime(doc.updated_at)}
         </p>
-      </Link>
+      </DocumentLink>
       <DeleteDocumentButton documentId={doc.id} title={doc.title} />
     </li>
   );
@@ -34,7 +34,7 @@ function OwnedRow({ doc }: { doc: Document }) {
 function SharedRow({ doc }: { doc: SharedDocument }) {
   return (
     <li className="border-b border-neutral-200 py-3 last:border-b-0">
-      <Link
+      <DocumentLink
         href={`/documents/${doc.id}`}
         className="block min-w-0 hover:bg-neutral-100/80"
       >
@@ -47,7 +47,7 @@ function SharedRow({ doc }: { doc: SharedDocument }) {
         <p className="mt-0.5 text-sm text-neutral-500">
           Updated {formatRelativeTime(doc.updated_at)}
         </p>
-      </Link>
+      </DocumentLink>
     </li>
   );
 }
