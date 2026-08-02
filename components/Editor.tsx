@@ -1,12 +1,21 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
+import Placeholder from "@tiptap/extension-placeholder";
+import {
+  ArrowLeft,
+  Check,
+  List,
+  ListOrdered,
+  UserPlus,
+} from "lucide-react";
 import { useLoading } from "@/components/LoadingProvider";
 import { ShareDialog } from "@/components/ShareDialog";
+import { Spinner } from "@/components/Spinner";
 import type { DocumentContent } from "@/lib/types";
 
 type SaveStatus = "saved" | "saving" | "unsaved" | "conflict";
@@ -19,6 +28,8 @@ type EditorProps = {
   readOnly?: boolean;
   isOwner: boolean;
   ownerName: string;
+  ownerEmail: string;
+  ownerId: string;
 };
 
 type DocumentResponse = {
@@ -28,31 +39,71 @@ type DocumentResponse = {
   version: number;
 };
 
+function ToolbarDivider() {
+  return <span className="mx-1.5 h-[18px] w-px shrink-0 bg-line2" aria-hidden="true" />;
+}
+
 function ToolbarButton({
-  label,
   active,
   disabled,
   onClick,
+  ariaLabel,
+  className = "",
+  children,
 }: {
-  label: string;
   active: boolean;
   disabled?: boolean;
   onClick: () => void;
+  ariaLabel: string;
+  className?: string;
+  children: ReactNode;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
+      aria-label={ariaLabel}
       aria-pressed={active}
-      className={`rounded border px-2 py-1 text-sm ${
+      className={`flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-md text-[14px] transition-colors duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pine disabled:cursor-not-allowed disabled:opacity-40 ${
         active
-          ? "border-neutral-700 bg-neutral-200 text-neutral-900"
-          : "border-neutral-300 bg-white text-neutral-700"
-      } disabled:cursor-not-allowed disabled:opacity-40`}
+          ? "bg-pineSoft text-pineMid"
+          : "bg-transparent text-section hover:bg-pill"
+      } ${className}`}
     >
-      {label}
+      {children}
     </button>
+  );
+}
+
+function SaveStatusIndicator({ status }: { status: SaveStatus }) {
+  if (status === "saving") {
+    return (
+      <span className="inline-flex items-center gap-1.5 text-[12px] text-muted">
+        <Spinner className="h-[13px] w-[13px] border-line2 border-t-muted" />
+        Saving…
+      </span>
+    );
+  }
+
+  if (status === "unsaved") {
+    return (
+      <span className="inline-flex items-center gap-1.5 text-[12px] text-muted">
+        <span className="h-1.5 w-1.5 rounded-full bg-muted" aria-hidden="true" />
+        Unsaved changes
+      </span>
+    );
+  }
+
+  if (status === "conflict") {
+    return <span className="text-[12px] text-muted">Conflict</span>;
+  }
+
+  return (
+    <span className="inline-flex items-center gap-1.5 text-[12px] text-muted">
+      <Check className="h-[13px] w-[13px] text-pineMid" aria-hidden="true" />
+      Saved
+    </span>
   );
 }
 
@@ -64,6 +115,8 @@ export function Editor({
   readOnly = false,
   isOwner,
   ownerName,
+  ownerEmail,
+  ownerId,
 }: EditorProps) {
   const { showLoading } = useLoading();
   const [title, setTitle] = useState(initialTitle);
@@ -72,6 +125,7 @@ export function Editor({
   const [conflict, setConflict] = useState(false);
   const [toolbarTick, setToolbarTick] = useState(0);
   const [shareOpen, setShareOpen] = useState(false);
+  const shareButtonRef = useRef<HTMLButtonElement>(null);
 
   const titleRef = useRef(title);
   const versionRef = useRef(version);
@@ -139,7 +193,6 @@ export function Editor({
             scheduleSaveRef.current();
           }
         } catch {
-          // Keep dirty and retry on the next debounce tick.
           setStatus("unsaved");
           scheduleSaveRef.current();
         } finally {
@@ -164,15 +217,20 @@ export function Editor({
   }, [readOnly, scheduleSave]);
 
   const editor = useEditor({
-    extensions: [StarterKit, Underline],
+    extensions: [
+      StarterKit,
+      Underline,
+      Placeholder.configure({
+        placeholder: "Start writing…",
+      }),
+    ],
     content: initialContent,
     editable: !readOnly && !conflict,
     immediatelyRender: false,
     shouldRerenderOnTransaction: true,
     editorProps: {
       attributes: {
-        class:
-          "prose-doc min-h-[60vh] max-w-[800px] px-8 py-6 text-base leading-7 text-neutral-900 outline-none",
+        class: "prose-doc outline-none",
       },
     },
     onUpdate: ({ editor: current }) => {
@@ -236,131 +294,172 @@ export function Editor({
   const disabled = readOnly || conflict || !editor;
   void toolbarTick;
 
-  const statusLabel =
-    status === "saving"
-      ? "Saving…"
-      : status === "unsaved"
-        ? "Unsaved changes"
-        : status === "conflict"
-          ? "Conflict"
-          : "Saved";
-
   return (
-    <div className="mx-auto max-w-[800px]">
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-neutral-200 pb-3">
-        <Link
-          href="/"
-          className="text-sm text-neutral-600 underline"
-          onClick={() => {
-            showLoading("Loading dashboard…");
-          }}
-        >
-          ← Back to dashboard
-        </Link>
-        <div className="flex items-center gap-3">
-          <span className="text-xs text-neutral-500">{statusLabel}</span>
-          {isOwner ? (
-            <button
-              type="button"
-              onClick={() => setShareOpen((open) => !open)}
-              className="rounded border border-neutral-300 bg-white px-2.5 py-1 text-sm text-neutral-800"
+    <div className="min-h-[calc(100vh-3.5rem)] bg-canvas">
+      <div className="sticky top-0 z-20">
+        <div className="flex h-14 items-center justify-between gap-4 border-b border-line bg-surface px-6">
+          <div className="flex min-w-0 items-center gap-3">
+            <Link
+              href="/"
+              aria-label="Back to documents"
+              onClick={() => {
+                showLoading("Loading dashboard…");
+              }}
+              className="rounded-md p-1 text-section transition-colors duration-fast hover:bg-pill focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pine"
             >
-              {shareOpen ? "Close share" : "Share"}
-            </button>
-          ) : (
-            <span className="text-sm text-neutral-600">
-              Shared with you by {ownerName}
+              <ArrowLeft className="h-[17px] w-[17px]" aria-hidden="true" />
+            </Link>
+
+            <input
+              type="text"
+              value={title}
+              onChange={(event) => handleTitleChange(event.target.value)}
+              onBlur={handleTitleBlur}
+              readOnly={readOnly || conflict}
+              aria-label="Document title"
+              placeholder="Untitled document"
+              className="min-w-0 max-w-[min(420px,50vw)] truncate border-0 border-b border-transparent bg-transparent text-[15px] font-medium text-ink outline-none transition-colors duration-fast placeholder:text-faint focus:border-line2 focus-visible:ring-2 focus-visible:ring-pine focus-visible:ring-offset-1"
+            />
+
+            <span className="hidden shrink-0 rounded-pill bg-pill px-2 py-0.5 text-[11px] text-muted sm:inline">
+              {isOwner ? "Owner" : `Shared by ${ownerName}`}
             </span>
-          )}
+          </div>
+
+          <div className="flex shrink-0 items-center gap-3.5">
+            <SaveStatusIndicator status={status} />
+            {isOwner && (
+              <button
+                ref={shareButtonRef}
+                type="button"
+                onClick={() => setShareOpen(true)}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-pine px-3.5 py-[7px] text-[13px] font-medium text-pineFg transition-colors duration-fast hover:bg-pineMid focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pine"
+              >
+                <UserPlus className="h-[14px] w-[14px]" aria-hidden="true" />
+                Share
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className="flex h-[50px] items-center justify-center overflow-x-auto border-b border-line bg-surface px-4">
+          <div className="flex items-center gap-0.5">
+            <ToolbarButton
+              ariaLabel="Bold"
+              active={!!editor?.isActive("bold")}
+              disabled={disabled}
+              onClick={() => editor?.chain().focus().toggleBold().run()}
+              className="font-semibold"
+            >
+              B
+            </ToolbarButton>
+            <ToolbarButton
+              ariaLabel="Italic"
+              active={!!editor?.isActive("italic")}
+              disabled={disabled}
+              onClick={() => editor?.chain().focus().toggleItalic().run()}
+              className="italic"
+            >
+              I
+            </ToolbarButton>
+            <ToolbarButton
+              ariaLabel="Underline"
+              active={!!editor?.isActive("underline")}
+              disabled={disabled}
+              onClick={() => editor?.chain().focus().toggleUnderline().run()}
+              className="underline"
+            >
+              U
+            </ToolbarButton>
+
+            <ToolbarDivider />
+
+            <ToolbarButton
+              ariaLabel="Heading 1"
+              active={!!editor?.isActive("heading", { level: 1 })}
+              disabled={disabled}
+              onClick={() =>
+                editor?.chain().focus().toggleHeading({ level: 1 }).run()
+              }
+              className="w-auto px-2 text-[12px] font-bold"
+            >
+              H1
+            </ToolbarButton>
+            <ToolbarButton
+              ariaLabel="Heading 2"
+              active={!!editor?.isActive("heading", { level: 2 })}
+              disabled={disabled}
+              onClick={() =>
+                editor?.chain().focus().toggleHeading({ level: 2 }).run()
+              }
+              className="w-auto px-2 text-[12px] font-bold"
+            >
+              H2
+            </ToolbarButton>
+
+            <ToolbarDivider />
+
+            <ToolbarButton
+              ariaLabel="Bulleted list"
+              active={!!editor?.isActive("bulletList")}
+              disabled={disabled}
+              onClick={() => editor?.chain().focus().toggleBulletList().run()}
+            >
+              <List className="h-[15px] w-[15px]" aria-hidden="true" />
+            </ToolbarButton>
+            <ToolbarButton
+              ariaLabel="Numbered list"
+              active={!!editor?.isActive("orderedList")}
+              disabled={disabled}
+              onClick={() => editor?.chain().focus().toggleOrderedList().run()}
+            >
+              <ListOrdered className="h-[15px] w-[15px]" aria-hidden="true" />
+            </ToolbarButton>
+          </div>
         </div>
       </div>
 
-      {isOwner && shareOpen && <ShareDialog documentId={documentId} />}
+      {isOwner && shareOpen && (
+        <ShareDialog
+          documentId={documentId}
+          documentTitle={title}
+          owner={{
+            id: ownerId,
+            name: ownerName,
+            email: ownerEmail,
+          }}
+          onClose={() => {
+            setShareOpen(false);
+            requestAnimationFrame(() => {
+              shareButtonRef.current?.focus();
+            });
+          }}
+        />
+      )}
 
       {conflict && (
         <div
           role="alert"
-          className="mb-4 border border-neutral-400 bg-neutral-100 px-4 py-3 text-sm text-neutral-900"
+          className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 border-b border-conflictBorder bg-conflictBg px-6 py-3 text-[13px] text-conflictText"
         >
-          <p>
-            This document was changed elsewhere. Reload to get the latest
-            version.
-          </p>
+          <span>This document was changed elsewhere.</span>
           <button
             type="button"
             onClick={() => {
               void handleReload();
             }}
-            className="mt-2 border border-neutral-500 bg-white px-3 py-1 text-sm"
+            className="underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pine"
           >
             Reload
           </button>
         </div>
       )}
 
-      <div className="mb-2 flex items-baseline justify-between gap-4">
-        <input
-          type="text"
-          value={title}
-          onChange={(event) => handleTitleChange(event.target.value)}
-          onBlur={handleTitleBlur}
-          readOnly={readOnly || conflict}
-          aria-label="Document title"
-          className="w-full border-0 bg-transparent text-3xl font-semibold text-neutral-900 outline-none placeholder:text-neutral-400"
-          placeholder="Untitled document"
-        />
+      <div className="flex justify-center px-4 py-9 sm:px-6 sm:py-9">
+        <div className="w-full max-w-[680px] rounded bg-surface px-6 py-8 sm:px-16 sm:py-14 border border-line">
+          <EditorContent editor={editor} />
+        </div>
       </div>
-
-      <div className="mb-4 flex flex-wrap gap-2 border-b border-neutral-200 pb-3">
-        <ToolbarButton
-          label="Bold"
-          active={!!editor?.isActive("bold")}
-          disabled={disabled}
-          onClick={() => editor?.chain().focus().toggleBold().run()}
-        />
-        <ToolbarButton
-          label="Italic"
-          active={!!editor?.isActive("italic")}
-          disabled={disabled}
-          onClick={() => editor?.chain().focus().toggleItalic().run()}
-        />
-        <ToolbarButton
-          label="Underline"
-          active={!!editor?.isActive("underline")}
-          disabled={disabled}
-          onClick={() => editor?.chain().focus().toggleUnderline().run()}
-        />
-        <ToolbarButton
-          label="H1"
-          active={!!editor?.isActive("heading", { level: 1 })}
-          disabled={disabled}
-          onClick={() =>
-            editor?.chain().focus().toggleHeading({ level: 1 }).run()
-          }
-        />
-        <ToolbarButton
-          label="H2"
-          active={!!editor?.isActive("heading", { level: 2 })}
-          disabled={disabled}
-          onClick={() =>
-            editor?.chain().focus().toggleHeading({ level: 2 }).run()
-          }
-        />
-        <ToolbarButton
-          label="Bulleted list"
-          active={!!editor?.isActive("bulletList")}
-          disabled={disabled}
-          onClick={() => editor?.chain().focus().toggleBulletList().run()}
-        />
-        <ToolbarButton
-          label="Numbered list"
-          active={!!editor?.isActive("orderedList")}
-          disabled={disabled}
-          onClick={() => editor?.chain().focus().toggleOrderedList().run()}
-        />
-      </div>
-
-      <EditorContent editor={editor} />
     </div>
   );
 }

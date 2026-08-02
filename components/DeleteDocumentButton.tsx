@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { Trash2 } from "lucide-react";
 import { useLoading } from "@/components/LoadingProvider";
 import { Spinner } from "@/components/Spinner";
 
@@ -53,10 +54,14 @@ export function DeleteDocumentButton({
         void handleDelete();
       }}
       disabled={deleting}
-      className="inline-flex items-center gap-1.5 text-xs text-neutral-400 hover:text-neutral-700 disabled:opacity-50"
+      aria-label={`Delete ${title}`}
+      className="shrink-0 rounded-md p-1 text-trash opacity-0 transition-all duration-fast group-hover:opacity-100 hover:text-red-600 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pine disabled:opacity-50"
     >
-      {deleting && <Spinner className="h-3 w-3" />}
-      {deleting ? "Deleting…" : "Delete"}
+      {deleting ? (
+        <Spinner className="h-[15px] w-[15px]" />
+      ) : (
+        <Trash2 className="h-[15px] w-[15px]" aria-hidden="true" />
+      )}
     </button>
   );
 }

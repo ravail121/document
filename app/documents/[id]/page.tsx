@@ -11,29 +11,48 @@ type PageProps = {
   params: { id: string };
 };
 
+function StatusPage({
+  title,
+  detail,
+}: {
+  title: string;
+  detail: string;
+}) {
+  return (
+    <main className="flex min-h-[calc(100vh-3.5rem)] items-center justify-center bg-canvas px-6">
+      <div className="max-w-md text-center">
+        <p className="text-[15px] text-ink">{title}</p>
+        <p className="mt-2 text-[13px] text-muted">{detail}</p>
+        <Link
+          href="/"
+          className="mt-5 inline-block text-[13px] text-pineMid underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pine"
+        >
+          Back to documents
+        </Link>
+      </div>
+    </main>
+  );
+}
+
 export default async function DocumentPage({ params }: PageProps) {
   const userId = getCurrentUserId();
   const doc = await getDocumentById(params.id);
 
   if (!doc) {
     return (
-      <main className="mx-auto max-w-[800px] p-8 text-neutral-900">
-        <p className="text-lg">404 — Document not found</p>
-        <Link href="/" className="mt-4 inline-block text-sm text-neutral-600 underline">
-          ← Back to dashboard
-        </Link>
-      </main>
+      <StatusPage
+        title="Document not found"
+        detail="This document may have been deleted or the link is incorrect."
+      />
     );
   }
 
   if (!(await canRead(doc.id, userId))) {
     return (
-      <main className="mx-auto max-w-[800px] p-8 text-neutral-900">
-        <p className="text-lg">You do not have access to this document</p>
-        <Link href="/" className="mt-4 inline-block text-sm text-neutral-600 underline">
-          ← Back to dashboard
-        </Link>
-      </main>
+      <StatusPage
+        title="You do not have access to this document"
+        detail="Ask the owner to share it with you, or return to your documents."
+      />
     );
   }
 
@@ -45,7 +64,7 @@ export default async function DocumentPage({ params }: PageProps) {
   };
 
   return (
-    <main className="px-4 py-8 text-neutral-900">
+    <main>
       <Editor
         documentId={doc.id}
         initialTitle={doc.title}
@@ -53,7 +72,9 @@ export default async function DocumentPage({ params }: PageProps) {
         initialVersion={doc.version}
         readOnly={false}
         isOwner={owner}
+        ownerId={doc.owner_id}
         ownerName={ownerUser?.name ?? "Unknown"}
+        ownerEmail={ownerUser?.email ?? ""}
       />
     </main>
   );

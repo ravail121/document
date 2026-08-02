@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { Plus } from "lucide-react";
 import { useLoading } from "@/components/LoadingProvider";
 import { Spinner } from "@/components/Spinner";
 
@@ -33,7 +34,6 @@ export function NewDocumentButton() {
 
       const doc = (await response.json()) as DocumentResponse;
       router.push(`/documents/${doc.id}`);
-      // Keep overlay visible until the route transition completes.
     } catch {
       hideLoading();
     } finally {
@@ -48,9 +48,13 @@ export function NewDocumentButton() {
         void handleCreate();
       }}
       disabled={creating}
-      className="inline-flex items-center gap-2 rounded border border-neutral-800 bg-neutral-900 px-3 py-1.5 text-sm text-white disabled:opacity-50"
+      className="inline-flex items-center gap-1.5 rounded-lg bg-pine px-4 py-[9px] text-[13px] font-medium text-pineFg transition-colors duration-fast hover:bg-pineMid disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pine"
     >
-      {creating && <Spinner className="h-3.5 w-3.5 border-neutral-500 border-t-white" />}
+      {creating ? (
+        <Spinner className="h-[15px] w-[15px] border-pineInk border-t-pineFg" />
+      ) : (
+        <Plus className="h-[15px] w-[15px]" aria-hidden="true" />
+      )}
       {creating ? "Creating…" : "New document"}
     </button>
   );

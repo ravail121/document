@@ -1,11 +1,25 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+} from "react";
+import { Check, X } from "lucide-react";
 import { Spinner } from "@/components/Spinner";
 import type { ShareUser, User } from "@/lib/types";
 
 type ShareDialogProps = {
   documentId: string;
+  documentTitle: string;
+  owner: {
+    id: string;
+    name: string;
+    email: string;
+  };
+  onClose: () => void;
 };
 
 type ShareListResponse = {
@@ -17,14 +31,28 @@ type ErrorBody = {
   error?: string;
 };
 
-export function ShareDialog({ documentId }: ShareDialogProps) {
+type Feedback =
+  | { kind: "added"; message: string }
+  | { kind: "removed"; message: string }
+  | { kind: "error"; message: string }
+  | null;
+
+export function ShareDialog({
+  documentId,
+  documentTitle,
+  owner,
+  onClose,
+}: ShareDialogProps) {
+  const titleId = useId();
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+
   const [shares, setShares] = useState<ShareUser[]>([]);
   const [candidates, setCandidates] = useState<User[]>([]);
   const [selectedUserId, setSelectedUserId] = useState("");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [confirmation, setConfirmation] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<Feedback>(null);
 
   const applyPayload = useCallback((payload: ShareListResponse) => {
     setShares(payload.shares);
@@ -38,8 +66,6 @@ export function ShareDialog({ documentId }: ShareDialogProps) {
   }, []);
 
   const refresh = useCallback(async () => {
-    setError(null);
-
     const response = await fetch(`/api/documents/${documentId}/shares`);
     if (!response.ok) {
       const body = (await response.json()) as ErrorBody;
@@ -59,7 +85,11 @@ export function ShareDialog({ documentId }: ShareDialogProps) {
         await refresh();
       } catch (err) {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Failed to load shares");
+          setFeedback({
+            kind: "error",
+            message:
+              err instanceof Error ? err.message : "Failed to load shares",
+          });
         }
       } finally {
         if (!cancelled) {
@@ -74,13 +104,32 @@ export function ShareDialog({ documentId }: ShareDialogProps) {
     };
   }, [refresh]);
 
+  useEffect(() => {
+    closeButtonRef.current?.focus();
+
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onClose();
+      }
+    }
+
+    document.addEventListener("keydown", onKeyDown);
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [onClose]);
+
   async function handleAdd() {
     if (!selectedUserId || busy) return;
 
     const selected = candidates.find((user) => user.id === selectedUserId);
     setBusy(true);
-    setError(null);
-    setConfirmation(null);
+    setFeedback(null);
 
     try {
       const response = await fetch(`/api/documents/${documentId}/shares`, {
@@ -91,16 +140,22 @@ export function ShareDialog({ documentId }: ShareDialogProps) {
 
       if (!response.ok) {
         const body = (await response.json()) as ErrorBody;
-        setError(body.error ?? "Failed to share document");
+        setFeedback({
+          kind: "error",
+          message: body.error ?? "Failed to share document",
+        });
         return;
       }
 
       await refresh();
       if (selected) {
-        setConfirmation(`${selected.name} now has access.`);
+        setFeedback({
+          kind: "added",
+          message: `${selected.name} now has access`,
+        });
       }
     } catch {
-      setError("Failed to share document");
+      setFeedback({ kind: "error", message: "Failed to share document" });
     } finally {
       setBusy(false);
     }
@@ -109,9 +164,9 @@ export function ShareDialog({ documentId }: ShareDialogProps) {
   async function handleRemove(userId: string) {
     if (busy) return;
 
+    const target = shares.find((share) => share.id === userId);
     setBusy(true);
-    setError(null);
-    setConfirmation(null);
+    setFeedback(null);
 
     try {
       const response = await fetch(`/api/documents/${documentId}/shares`, {
@@ -122,78 +177,83 @@ export function ShareDialog({ documentId }: ShareDialogProps) {
 
       if (!response.ok) {
         const body = (await response.json()) as ErrorBody;
-        setError(body.error ?? "Failed to revoke access");
+        setFeedback({
+          kind: "error",
+          message: body.error ?? "Failed to revoke access",
+        });
         return;
       }
 
       await refresh();
+      if (target) {
+        setFeedback({
+          kind: "removed",
+          message: `${target.name} no longer has access`,
+        });
+      }
     } catch {
-      setError("Failed to revoke access");
+      setFeedback({ kind: "error", message: "Failed to revoke access" });
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <div className="mb-4 border border-neutral-300 bg-white px-4 py-3 text-sm">
-      <h3 className="mb-3 font-medium text-neutral-900">Share document</h3>
-
-      {loading ? (
-        <div className="flex items-center gap-2 text-neutral-500">
-          <Spinner className="h-4 w-4" />
-          <span>Loading…</span>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-6"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) {
+          onClose();
+        }
+      }}
+    >
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        className="w-full max-w-[420px] rounded-xl bg-surface p-6"
+      >
+        <div className="mb-1 flex items-start justify-between gap-3">
+          <h2
+            id={titleId}
+            className="text-[16px] font-medium leading-snug text-ink"
+          >
+            Share &ldquo;{documentTitle}&rdquo;
+          </h2>
+          <button
+            ref={closeButtonRef}
+            type="button"
+            aria-label="Close share dialog"
+            onClick={onClose}
+            className="rounded-md p-1 text-muted transition-colors duration-fast hover:bg-pill focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pine"
+          >
+            <X className="h-4 w-4" aria-hidden="true" />
+          </button>
         </div>
-      ) : (
-        <>
-          <div className="mb-4">
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-neutral-500">
-              People with access
-            </p>
-            {shares.length === 0 ? (
-              <p className="text-neutral-500">Not shared with anyone yet.</p>
-            ) : (
-              <ul className="divide-y divide-neutral-200 border-t border-neutral-200">
-                {shares.map((share) => (
-                  <li
-                    key={share.id}
-                    className="flex items-center justify-between gap-3 py-2"
-                  >
-                    <div>
-                      <p className="text-neutral-900">{share.name}</p>
-                      <p className="text-xs text-neutral-500">{share.email}</p>
-                    </div>
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={() => {
-                        void handleRemove(share.id);
-                      }}
-                      className="inline-flex items-center gap-1 text-xs text-neutral-500 hover:text-neutral-800 disabled:opacity-50"
-                    >
-                      {busy && <Spinner className="h-3 w-3" />}
-                      Remove
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
+        <p className="mb-5 text-[13px] text-muted">
+          People with access can read and edit
+        </p>
 
-          <div>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-neutral-500">
-              Add people
-            </p>
+        {loading ? (
+          <div className="mb-5 flex items-center gap-2 text-[13px] text-muted">
+            <Spinner className="h-4 w-4" />
+            <span>Loading…</span>
+          </div>
+        ) : (
+          <>
             {candidates.length === 0 ? (
-              <p className="text-neutral-500">
+              <p className="mb-5 text-[13px] text-muted">
                 Everyone already has access to this document.
               </p>
             ) : (
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="mb-5 flex gap-2">
                 <select
                   value={selectedUserId}
                   disabled={busy}
                   onChange={(event) => setSelectedUserId(event.target.value)}
-                  className="rounded border border-neutral-300 bg-white px-2 py-1 text-neutral-900"
+                  aria-label="Choose a person to share with"
+                  className="min-w-0 flex-1 rounded-lg border border-line2 bg-surface px-3 py-2 text-[13px] text-ink transition-colors duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pine disabled:opacity-50"
                 >
                   {candidates.map((user) => (
                     <option key={user.id} value={user.id}>
@@ -207,27 +267,82 @@ export function ShareDialog({ documentId }: ShareDialogProps) {
                   onClick={() => {
                     void handleAdd();
                   }}
-                  className="inline-flex items-center gap-2 rounded border border-neutral-800 bg-neutral-900 px-3 py-1 text-white disabled:opacity-50"
+                  className="inline-flex items-center gap-2 rounded-lg bg-pine px-[18px] py-2 text-[13px] font-medium text-pineFg transition-colors duration-fast hover:bg-pineMid focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pine disabled:opacity-50"
                 >
                   {busy && (
-                    <Spinner className="h-3.5 w-3.5 border-neutral-500 border-t-white" />
+                    <Spinner className="h-3.5 w-3.5 border-pineInk border-t-pineFg" />
                   )}
                   Add
                 </button>
               </div>
             )}
-          </div>
-        </>
-      )}
 
-      {error && (
-        <p role="alert" className="mt-3 text-sm text-red-700">
-          {error}
-        </p>
-      )}
-      {confirmation && !error && (
-        <p className="mt-3 text-sm text-neutral-600">{confirmation}</p>
-      )}
+            <p className="mb-1.5 text-[11px] font-medium tracking-[0.06em] text-section">
+              WHO HAS ACCESS
+            </p>
+
+            <ul>
+              <li className="flex items-center gap-2.5 border-b border-rowLine py-2.5">
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-pineMid text-[11px] font-medium text-surface">
+                  {owner.name.charAt(0).toUpperCase() || "?"}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[13px] text-ink">{owner.name}</p>
+                  <p className="truncate text-[12px] text-muted">{owner.email}</p>
+                </div>
+                <span className="shrink-0 text-[12px] text-muted">Owner</span>
+              </li>
+
+              {shares.map((share) => (
+                <li
+                  key={share.id}
+                  className="flex items-center gap-2.5 border-b border-rowLine py-2.5 last:border-b-0"
+                >
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-ownerDot text-[11px] font-medium text-surface">
+                    {share.name.charAt(0).toUpperCase() || "?"}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[13px] text-ink">{share.name}</p>
+                    <p className="truncate text-[12px] text-muted">
+                      {share.email}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => {
+                      void handleRemove(share.id);
+                    }}
+                    className="shrink-0 text-[12px] text-muted underline transition-colors duration-fast hover:text-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pine disabled:opacity-50"
+                  >
+                    Remove
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+
+        {feedback?.kind === "added" && (
+          <div className="mt-3.5 flex items-center gap-1.5 rounded-lg bg-pineSoft px-3 py-2">
+            <Check className="h-[13px] w-[13px] shrink-0 text-pineMid" aria-hidden="true" />
+            <p className="text-[12px] text-pine">{feedback.message}</p>
+          </div>
+        )}
+        {feedback?.kind === "removed" && (
+          <div className="mt-3.5 rounded-lg bg-pill px-3 py-2">
+            <p className="text-[12px] text-ink">{feedback.message}</p>
+          </div>
+        )}
+        {feedback?.kind === "error" && (
+          <div
+            role="alert"
+            className="mt-3.5 rounded-lg bg-dangerBg px-3 py-2"
+          >
+            <p className="text-[12px] text-danger">{feedback.message}</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

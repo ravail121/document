@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
+import { Upload } from "lucide-react";
 import { useLoading } from "@/components/LoadingProvider";
 import { Spinner } from "@/components/Spinner";
 
@@ -70,16 +71,17 @@ export function UploadButton() {
         type="button"
         disabled={uploading}
         onClick={() => inputRef.current?.click()}
-        className="inline-flex items-center gap-2 rounded border border-neutral-300 bg-white px-3 py-1.5 text-sm text-neutral-800 disabled:opacity-50"
+        className="inline-flex items-center gap-1.5 rounded-lg border border-line2 bg-surface px-4 py-[9px] text-[13px] text-ink transition-colors duration-fast hover:bg-pill disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pine"
       >
-        {uploading && <Spinner className="h-3.5 w-3.5" />}
-        {uploading ? "Uploading…" : "Upload a file"}
+        {uploading ? (
+          <Spinner className="h-[15px] w-[15px]" />
+        ) : (
+          <Upload className="h-[15px] w-[15px]" aria-hidden="true" />
+        )}
+        {uploading ? "Uploading…" : "Upload"}
       </button>
-      <p className="text-xs text-neutral-500">
-        Supports .txt and .md files up to 1MB.
-      </p>
       {error && (
-        <p role="alert" className="text-xs text-red-700">
+        <p role="alert" className="text-[12px] text-red-700">
           {error}
         </p>
       )}

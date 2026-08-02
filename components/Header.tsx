@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { ChevronDown } from "lucide-react";
 import { useLoading } from "@/components/LoadingProvider";
 import { Spinner } from "@/components/Spinner";
 import type { User } from "@/lib/types";
@@ -74,23 +75,44 @@ export function Header({ currentUserId }: HeaderProps) {
     }
   }
 
+  const currentUser =
+    users.find((user) => user.id === selectedUserId) ??
+    users.find((user) => user.id === currentUserId);
+  const displayName = currentUser?.name ?? "…";
+  const initial = displayName.charAt(0).toUpperCase() || "?";
+
   return (
-    <header className="border-b border-neutral-200 bg-white">
-      <div className="mx-auto flex max-w-3xl items-center justify-between gap-4 px-6 py-3">
+    <header className="h-14 border-b border-line bg-surface">
+      <div className="flex h-full items-center justify-between px-6">
         <Link
           href="/"
-          className="text-base font-semibold tracking-tight text-neutral-900"
+          className="flex items-center gap-2.5 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pine"
           onClick={() => {
             showLoading("Loading dashboard…");
           }}
         >
-          docs
+          <span className="flex h-[26px] w-[26px] items-center justify-center rounded-md bg-pine text-[12px] font-medium text-pineInk">
+            D
+          </span>
+          <span className="text-[14px] font-medium tracking-tight text-ink">
+            Docs
+          </span>
         </Link>
 
-        <div className="flex flex-wrap items-center justify-end gap-2 text-sm">
-          <label className="flex items-center gap-2 text-neutral-700">
-            <span className="text-neutral-500">Viewing as</span>
-            {switching && <Spinner className="h-3.5 w-3.5" label="Switching" />}
+        <div className="flex items-center gap-3">
+          <span className="text-[12px] text-muted">Simulated accounts</span>
+          {switching && <Spinner className="h-3.5 w-3.5" label="Switching" />}
+          <div className="relative">
+            <div className="pointer-events-none flex items-center gap-2 rounded-pill bg-pill py-[5px] pl-[5px] pr-3 text-[13px] text-ink">
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-pineMid text-[11px] font-medium text-surface">
+                {initial}
+              </span>
+              <span>{displayName}</span>
+              <ChevronDown
+                className="h-[13px] w-[13px] text-muted"
+                aria-hidden="true"
+              />
+            </div>
             <select
               value={selectedUserId}
               disabled={switching || users.length === 0}
@@ -98,7 +120,7 @@ export function Header({ currentUserId }: HeaderProps) {
                 void handleChange(event.target.value);
               }}
               aria-label="Viewing as"
-              className="rounded border border-neutral-300 bg-white px-2 py-1 text-neutral-900"
+              className="absolute inset-0 cursor-pointer opacity-0 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pine disabled:cursor-not-allowed"
             >
               {users.length === 0 ? (
                 <option value={selectedUserId}>Loading…</option>
@@ -110,10 +132,7 @@ export function Header({ currentUserId }: HeaderProps) {
                 ))
               )}
             </select>
-          </label>
-          <span className="text-xs text-neutral-400">
-            Simulated accounts — no login required.
-          </span>
+          </div>
         </div>
       </div>
     </header>
